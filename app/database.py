@@ -1,11 +1,9 @@
 import sqlite3
-import os
 from datetime import datetime, timedelta
 
 DATABASE_FILE = "db/karma.db"
 
 def initialize_db():
-    """Initialize the database and create the necessary tables."""
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
 
@@ -14,6 +12,7 @@ def initialize_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         task_name TEXT NOT NULL,
         completed BOOLEAN NOT NULL DEFAULT 0,
+        urgency_importance TEXT NOT NULL,
         date_created DATE DEFAULT CURRENT_DATE
     )
     ''')
@@ -29,16 +28,14 @@ def initialize_db():
     conn.commit()
     conn.close()
 
-def add_task(task_name):
-    """Add a task to the database."""
+def add_task(task_name, urgency_importance):
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
-    cursor.execute('INSERT INTO tasks (task_name, completed) VALUES (?, 0)', (task_name,))
+    cursor.execute('INSERT INTO tasks (task_name, urgency_importance, completed) VALUES (?, ?, 0)', (task_name, urgency_importance))
     conn.commit()
     conn.close()
 
 def get_tasks():
-    """Retrieve all tasks from the database."""
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM tasks WHERE date_created = CURRENT_DATE')
@@ -47,7 +44,6 @@ def get_tasks():
     return tasks
 
 def update_task_status(task_name, completed):
-    """Update the status of a task."""
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
     cursor.execute('UPDATE tasks SET completed = ? WHERE task_name = ?', (completed, task_name))
@@ -55,13 +51,11 @@ def update_task_status(task_name, completed):
     conn.close()
 
 def calculate_previous_day_karma():
-    """Calculate and store karma points for the previous day."""
     yesterday = (datetime.now() - timedelta(days=1)).date()
 
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
 
-    # Get tasks from yesterday and calculate karma points
     cursor.execute('SELECT * FROM tasks WHERE date_created = ?', (yesterday,))
     tasks = cursor.fetchall()
 
@@ -69,13 +63,11 @@ def calculate_previous_day_karma():
     total_tasks = len(tasks)
     karma_points = completed_tasks * 10 - (total_tasks - completed_tasks) * 5
 
-    # Insert the calculated karma points into the karma_points table
     cursor.execute('INSERT INTO karma_points (date, points) VALUES (?, ?)', (yesterday, karma_points))
     conn.commit()
     conn.close()
 
 def check_new_day():
-    """Check if a new day has started."""
     today = datetime.now().date()
 
     conn = sqlite3.connect(DATABASE_FILE)
@@ -87,3 +79,11 @@ def check_new_day():
     if last_date is None or datetime.strptime(last_date, '%Y-%m-%d').date() < today:
         return True
     return False
+
+def get_karma_points():
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT date, points FROM karma_points ORDER BY date')
+    data = cursor.fetchall()
+    conn.close()
+    return data
